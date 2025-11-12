@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendRadar 热点雷达面板</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f5f7;
+            --panel: rgba(255, 255, 255, 0.82);
+            --border: rgba(15, 23, 42, 0.08);
+            --text-strong: #0b0b0f;
+            --text-mid: #5f6368;
+            --accent: #0071e3;
+            --accent-soft: rgba(0, 113, 227, 0.14);
+            --hot: #f04255;
+            --warm: #ff8a3c;
+            --cool: #2fb36d;
+            --code: #1d1d1f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text-strong);
+            line-height: 1.5;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(0, 113, 227, 0.12), transparent 40%),
+                        radial-gradient(circle at 80% 0%, rgba(255, 99, 72, 0.16), transparent 35%),
+                        radial-gradient(circle at 50% 80%, rgba(56, 189, 248, 0.12), transparent 45%);
+            pointer-events: none;
+            filter: blur(40px);
+            z-index: -1;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px clamp(20px, 4vw, 48px) clamp(80px, 12vh, 140px);
+        }
+
+        .hero {
+            position: relative;
+            padding: 36px clamp(24px, 5vw, 48px);
+            border-radius: 32px;
+            background: radial-gradient(circle at 25% 20%, rgba(123, 174, 255, 0.4), rgba(0, 113, 227, 0.7)),
+                        linear-gradient(135deg, #090b1a 0%, #101828 35%, #181642 100%);
+            color: white;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            top: -40px;
+            right: -60px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.35), transparent 60%);
+            filter: blur(10px);
+        }
+
+        .hero h1 {
+            margin: 0 0 12px;
+            font-size: clamp(26px, 4vw, 38px);
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.85;
+        }
+
+        .hero-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-top: 28px;
+        }
+
+        .meta-card {
+            padding: 16px 20px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(6px);
+        }
+
+        .meta-label {
+            display: block;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.65;
+            margin-bottom: 6px;
+        }
+
+        .meta-value {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1.3fr 0.9fr;
+            gap: 24px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(12px);
+        }
+
+        .chat-launcher {
+            position: fixed;
+            bottom: clamp(16px, 4vw, 40px);
+            right: clamp(16px, 4vw, 40px);
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(120deg, var(--accent), #00b7ff);
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 22px 48px rgba(0, 113, 227, 0.35);
+            cursor: pointer;
+            z-index: 20;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .chat-launcher:active {
+            transform: translateY(1px);
+            box-shadow: 0 14px 25px rgba(0, 113, 227, 0.25);
+        }
+
+        .chat-launcher[data-variant="streaming"] {
+            background: linear-gradient(120deg, #0b3ce1, #00b7ff);
+        }
+
+        .chat-launcher[data-variant="error"] {
+            background: linear-gradient(120deg, #f04255, #ff8a3c);
+            box-shadow: 0 22px 48px rgba(240, 66, 85, 0.35);
+        }
+
+        .chat-launcher-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.85);
+            animation: pulse 1.6s ease infinite;
+        }
+
+        .chat-launcher-copy {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+            text-align: left;
+        }
+
+        .chat-launcher-copy span {
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .chat-modal-portal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            padding: 24px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            z-index: 40;
+        }
+
+        .chat-modal-portal[data-open="true"] {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .chat-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.45);
+            backdrop-filter: blur(6px);
+            z-index: 0;
+        }
+
+        .chat-modal {
+            position: relative;
+            width: min(480px, 90vw);
+            background: var(--panel);
+            border-radius: 32px;
+            padding: 28px;
+            border: 1px solid var(--border);
+            box-shadow: 0 35px 80px rgba(15, 23, 42, 0.35);
+            transform: translateY(20px) scale(0.98);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .chat-modal-portal[data-open="true"] .chat-modal {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        .chat-modal-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .chat-modal-headline {
+            flex: 1;
+        }
+
+        .chat-modal-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-close {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background: rgba(15, 23, 42, 0.02);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            color: var(--text-mid);
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .chat-close:hover {
+            color: var(--text-strong);
+            border-color: rgba(0, 113, 227, 0.4);
+        }
+
+        body[data-chat-open="true"] {
+            overflow: hidden;
+        }
+
+        .chat-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            background: rgba(0, 113, 227, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(0, 113, 227, 0.15);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .chat-status[data-variant="ready"] {
+            background: rgba(47, 179, 109, 0.18);
+            border-color: rgba(47, 179, 109, 0.3);
+            color: var(--cool);
+        }
+
+        .chat-status[data-variant="connecting"] {
+            background: rgba(0, 113, 227, 0.16);
+            border-color: rgba(0, 113, 227, 0.25);
+        }
+
+        .chat-status[data-variant="streaming"] {
+            background: rgba(0, 113, 227, 0.2);
+            color: #0b3ce1;
+        }
+
+        .chat-status[data-variant="error"] {
+            background: rgba(240, 66, 85, 0.14);
+            border-color: rgba(240, 66, 85, 0.25);
+            color: var(--hot);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.6s ease infinite;
+        }
+
+        .chat-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .chat-messages {
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 20px;
+            background: white;
+            min-height: 280px;
+            max-height: 420px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            position: relative;
+        }
+
+        .chat-placeholder {
+            color: var(--text-mid);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .chat-placeholder.hidden {
+            display: none;
+        }
+
+        .chat-message {
+            border-radius: 18px;
+            padding: 12px 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            white-space: pre-wrap;
+            word-break: break-word;
+            animation: fadeIn 0.25s ease;
+            border: 1px solid transparent;
+        }
+
+        .chat-message.user {
+            align-self: flex-end;
+            background: var(--accent);
+            color: white;
+        }
+
+        .chat-message.assistant {
+            align-self: flex-start;
+            background: rgba(0, 113, 227, 0.08);
+            border: 1px solid rgba(0, 113, 227, 0.15);
+        }
+
+        .chat-message.error {
+            background: rgba(240, 66, 85, 0.08);
+            border-color: rgba(240, 66, 85, 0.4);
+            color: var(--hot);
+        }
+
+        .chat-quick-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chat-chip {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 13px;
+            background: rgba(15, 23, 42, 0.02);
+            color: var(--text-mid);
+            cursor: pointer;
+            transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+        }
+
+        .chat-chip:hover {
+            border-color: rgba(0, 113, 227, 0.4);
+            color: var(--accent);
+            background: rgba(0, 113, 227, 0.08);
+        }
+
+        .chat-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 16px;
+            font-size: 15px;
+            font-family: inherit;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 92px;
+        }
+
+        .chat-textarea:focus {
+            outline: none;
+            border-color: rgba(0, 113, 227, 0.5);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.08);
+        }
+
+        .chat-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .chat-actions-left {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ghost-button,
+        .primary-button {
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .ghost-button {
+            border-color: rgba(15, 23, 42, 0.16);
+            background: transparent;
+            color: var(--text-mid);
+        }
+
+        .primary-button {
+            background: linear-gradient(120deg, var(--accent), #00b7ff);
+            color: white;
+            border: none;
+            box-shadow: 0 12px 25px rgba(0, 113, 227, 0.26);
+        }
+
+        .ghost-button:disabled,
+        .primary-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .ghost-button:not(:disabled):active,
+        .primary-button:not(:disabled):active {
+            transform: translateY(1px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 16px;
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .panel-subtitle {
+            margin: 4px 0 0;
+            color: var(--text-mid);
+            font-size: 14px;
+        }
+
+        .badge {
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-mid);
+        }
+
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .batch-card {
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 22px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .batch-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .batch-time {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .batch-meta {
+            color: var(--text-mid);
+            font-size: 13px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .stat-card {
+            padding: 16px;
+            border-radius: 18px;
+            background: #f9fafb;
+            border: 1px solid rgba(15, 23, 42, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stat-word {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .stat-count {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-mid);
+        }
+
+        .stat-count strong {
+            font-size: 18px;
+            color: var(--text-strong);
+        }
+
+        .progress {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .progress span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), #00c6ff);
+        }
+
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .news-item {
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: white;
+            border: 1px solid rgba(15, 23, 42, 0.05);
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .news-item:hover {
+            border-color: rgba(0, 113, 227, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .news-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .news-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-mid);
+        }
+
+        .pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .incremental-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .incremental-card {
+            border: 1px dashed rgba(15, 23, 42, 0.12);
+            border-radius: 18px;
+            padding: 18px;
+            background: rgba(0, 113, 227, 0.03);
+        }
+
+        .incremental-card strong {
+            font-size: 22px;
+        }
+
+        .incremental-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-mid);
+            border: 1px dashed var(--border);
+            border-radius: 20px;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-mid);
+            font-size: 14px;
+        }
+
+        .dot-loader {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 1s ease infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.6); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.6; }
+        }
+
+        @media (max-width: 1080px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            .panel {
+                border-radius: 24px;
+            }
+            .chat-modal {
+                width: min(540px, 100%);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .page {
+                padding: 18px 18px 96px;
+            }
+            .hero {
+                border-radius: 24px;
+                padding: 28px 22px;
+            }
+            .panel {
+                padding: 22px;
+            }
+            .batch-summary {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .chat-messages {
+                min-height: 220px;
+            }
+            .chat-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .chat-actions-left {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .chat-actions-left .ghost-button,
+            .chat-actions .primary-button {
+                width: 100%;
+            }
+            .chat-launcher {
+                width: calc(100% - 36px);
+                right: 18px;
+                bottom: 18px;
+                justify-content: center;
+            }
+            .chat-modal-portal {
+                padding: 0;
+                align-items: stretch;
+            }
+            .chat-modal {
+                width: 100%;
+                min-height: 100%;
+                border-radius: 0;
+            }
+            .chat-modal-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .chat-modal-head-actions {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header class="hero">
+        <h1>TrendRadar · 今日热点雷达</h1>
+        <p>汇集 11+ 平台热点，实时洞察关键词组合与新增动向。</p>
+        <div class="hero-meta">
+            <div class="meta-card">
+                <span class="meta-label">数据日期</span>
+                <span class="meta-value" id="metaDate">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">批次数</span>
+                <span class="meta-value" id="metaBatch">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">覆盖新闻</span>
+                <span class="meta-value" id="metaNews">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">最新更新</span>
+                <span class="meta-value" id="metaUpdated">——</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="panel" aria-labelledby="timelineTitle">
+            <div>
+                <div class="panel-head">
+                    <div>
+                        <h2 class="panel-title" id="timelineTitle">今日批次轨迹</h2>
+                        <p class="panel-subtitle">每个时间切片的关键词聚合 & 热度占比</p>
+                    </div>
+                    <span class="badge" id="batchBadge">—</span>
+                </div>
+                <div class="timeline" id="batchTimeline">
+                    <div class="loading">
+                        <span class="dot-loader"></span>
+                        <span>正在拉取汇总数据…</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="incrementalTitle">
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title" id="incrementalTitle">增量监控</h2>
+                    <p class="panel-subtitle">最新批次新增词组与新闻动向</p>
+                </div>
+                <span class="badge" id="incrementalBadge">—</span>
+            </div>
+
+            <div class="incremental-meta" id="incrementalMeta"></div>
+            <div class="incremental-stats" id="incrementalStats">
+                <div class="loading">
+                    <span class="dot-loader"></span>
+                    <span>正在拉取增量数据…</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<button class="chat-launcher" id="chatLauncher" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="chatModal" data-variant="idle">
+    <span class="chat-launcher-dot" aria-hidden="true"></span>
+    <span class="chat-launcher-copy">
+        <strong>AI 热点分析师</strong>
+        <span>热点问答</span>
+    </span>
+</button>
+
+<div class="chat-modal-portal" id="chatModalPortal" data-open="false" aria-hidden="true">
+    <div class="chat-backdrop" id="chatBackdrop" tabindex="-1"></div>
+    <section class="chat-modal" id="chatModal" role="dialog" aria-modal="true" aria-labelledby="chatPanelTitle" aria-describedby="chatSubtitle">
+        <div class="chat-modal-head">
+            <div class="chat-modal-headline">
+                <h2 class="panel-title" id="chatPanelTitle">AI 热点分析师</h2>
+                <p class="panel-subtitle" id="chatSubtitle">向 TrendRadar 智能助手提问，实时洞察跨平台脉络。</p>
+            </div>
+            <div class="chat-modal-head-actions">
+                <div class="chat-status" id="chatStatusBadge" data-variant="idle" aria-live="polite">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span class="chat-status-text">等待连接…</span>
+                </div>
+                <button type="button" class="chat-close" id="chatCloseButton" aria-label="关闭聊天窗口">&times;</button>
+            </div>
+        </div>
+
+        <div class="chat-shell">
+            <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="聊天消息">
+                <div class="chat-placeholder" id="chatPlaceholder">
+                    <p>让 AI 自动理解今日的知乎、微博、抖音等热点，把你的问题和业务语境串联起来。</p>
+                    <small>首次提问会自动注入热点上下文，你也可以随时刷新会话重新对焦。</small>
+                </div>
+            </div>
+            <div class="chat-quick-prompts" aria-label="快速提问">
+                <button type="button" class="chat-chip" data-chat-prompt="总结今天舆论收割的 3 个焦点，并分析受众差异。">总结今天舆论收割的 3 个焦点</button>
+                <button type="button" class="chat-chip" data-chat-prompt="这些共同话题对一级市场策略意味着什么？">一级市场策略影响</button>
+                <button type="button" class="chat-chip" data-chat-prompt="请把微博和知乎的重叠话题做对比，列出潜在机会。">微博 vs 知乎 对比</button>
+                <button type="button" class="chat-chip" data-chat-prompt="请生成一个可行动的运营建议清单。">生成运营建议</button>
+            </div>
+        </div>
+
+        <form class="chat-form" id="chatForm" autocomplete="off">
+            <label class="sr-only" for="chatInput">输入你的问题</label>
+            <textarea id="chatInput" class="chat-textarea" name="message" placeholder="想问什么？比如：这些科创话题对一级市场融资节奏意味着什么？" rows="3" required></textarea>
+            <div class="chat-actions">
+                <div class="chat-actions-left">
+                    <button type="button" class="ghost-button" id="chatNewSession">新建会话</button>
+                    <button type="button" class="ghost-button" id="chatStopButton" disabled>停止生成</button>
+                </div>
+                <button type="submit" class="primary-button" id="chatSendButton" disabled>发送</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<!--
+    如需在无本地服务的情况下查看真实数据，可将 JSON 内容直接粘贴到下方脚本标签中。
+    例如：把 output/<date>/json/news_summary.json 的全文复制到 #inline-summary 内，然后刷新页面。
+-->
+<script id="inline-summary" type="application/json"></script>
+<script id="inline-incremental" type="application/json"></script>
+
+<script>
+    const query = new URLSearchParams(window.location.search);
+    const today = new Date();
+    const requestedDate = query.get('date');
+    const pad2 = (value) => String(value).padStart(2, '0');
+    const fallbackDate = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+
+    const extractYMD = (value) => {
+        if (!value) return null;
+        const chinese = value.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+        if (chinese) {
+            const [, y, m, d] = chinese;
+            return { y, m: pad2(m), d: pad2(d) };
+        }
+        const iso = value.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+        if (iso) {
+            const [, y, m, d] = iso;
+            return { y, m: pad2(m), d: pad2(d) };
+        }
+        return null;
+    };
+
+    const formatHyphen = (parts) => `${parts.y}-${parts.m}-${parts.d}`;
+    const formatChinese = (parts) => `${parts.y}年${parts.m}月${parts.d}日`;
+
+    const collectCandidates = (...values) => {
+        const buckets = [];
+        values.forEach((value) => {
+            if (!value) return;
+            const parts = extractYMD(value);
+            if (!parts) {
+                buckets.push(value);
+                return;
+            }
+            const hyphen = formatHyphen(parts);
+            const isChineseInput = /年/.test(value);
+            if (isChineseInput) {
+                buckets.push(formatChinese(parts));
+            }
+            buckets.push(hyphen);
+        });
+        return buckets;
+    };
+
+    const SAMPLE_SUMMARY = {
+        metadata: {
+            date: '2025-11-12',
+            total_batches: 5,
+            total_news_count: 150,
+            last_update: '2025-11-12T15:35:00+08:00',
+        },
+        batches: [
+            {
+                batch_id: '15时35分',
+                timestamp: '2025-11-12T15:35:00+08:00',
+                stats: [
+                    {
+                        word_group: '中国 美国 经济',
+                        count: 28,
+                        percentage: 18.6,
+                        news_list: [
+                            {
+                                title: '美就业疲软提振降息预期，人民币情绪修复',
+                                url: 'https://example.com/news/1',
+                                platform: 'wallstreetcn-hot',
+                                platform_name: '华尔街见闻',
+                                rank: 1,
+                                ranks: [1],
+                                occurrence_count: 1,
+                                time_display: '15时35分',
+                                is_new: false,
+                                mobile_url: 'https://m.example.com/news/1',
+                            },
+                            {
+                                title: '美股高位震荡，市场押注 12 月降息',
+                                url: 'https://example.com/news/2',
+                                platform: 'jin10-hot',
+                                platform_name: '金十数据',
+                                rank: 4,
+                                time_display: '15时28分',
+                                is_new: true,
+                            },
+                        ],
+                    },
+                    {
+                        word_group: '新能源 供应链',
+                        count: 16,
+                        percentage: 11.2,
+                        news_list: [
+                            {
+                                title: '国内动力电池开工率回升，三元再获海外大单',
+                                url: 'https://example.com/news/3',
+                                platform_name: '36氪热榜',
+                                rank: 2,
+                                time_display: '15时12分',
+                            },
+                            {
+                                title: '锂价止跌，四川资源型小厂重启',
+                                url: 'https://example.com/news/4',
+                                platform_name: '知乎热榜',
+                                rank: 8,
+                                time_display: '15时05分',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                batch_id: '14时50分',
+                timestamp: '2025-11-12T14:50:00+08:00',
+                stats: [
+                    {
+                        word_group: 'AI 芯片',
+                        count: 22,
+                        percentage: 14.2,
+                        news_list: [
+                            {
+                                title: '国产 GPU 交付国内云厂商，推理性能获验证',
+                                url: 'https://example.com/news/5',
+                                platform_name: '微博热搜',
+                                rank: 3,
+                                time_display: '14时46分',
+                                is_new: true,
+                            },
+                            {
+                                title: '台系封测厂 2025 产能满排，AI 订单排到 Q3',
+                                url: 'https://example.com/news/6',
+                                platform_name: '东吴证券读报',
+                                rank: 6,
+                                time_display: '14时40分',
+                            },
+                        ],
+                    },
+                    {
+                        word_group: '出海 电商',
+                        count: 12,
+                        percentage: 8.5,
+                        news_list: [
+                            {
+                                title: '东南亚 11.11 GMV 创新高，中国品牌占 63%',
+                                url: 'https://example.com/news/7',
+                                platform_name: '抖音热榜',
+                                rank: 5,
+                                time_display: '14时33分',
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const DASHBOARD_API_BASE_URL = window.HOTSPOT_DASHBOARD_BASE_URL || 'http://localhost:8000/api/v1';
+
+    const buildApiUrl = (endpoint, params = {}) => {
+        const normalizedBase = DASHBOARD_API_BASE_URL.replace(/\/$/, '');
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        const url = new URL(`${normalizedBase}${normalizedEndpoint}`);
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                url.searchParams.set(key, value);
+            }
+        });
+        return url.toString();
+    };
+
+    const fetchDashboardJSON = async (endpoint, params = {}) => {
+        const url = buildApiUrl(endpoint, params);
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+            throw new Error(`请求 ${endpoint} 失败 (${response.status})`);
+        }
+        const payload = await response.json().catch(() => null);
+        return payload?.data ?? payload;
+    };
+
+    const SAMPLE_INCREMENTAL = {
+        metadata: {
+            date: '2025-11-12',
+            batch_id: '15时35分',
+            timestamp: '2025-11-12T15:35:00+08:00',
+            new_news_count: 12,
+        },
+        stats: [
+            {
+                word_group: '中国 美国',
+                count: 5,
+                percentage: 41.6,
+                news_list: [
+                    {
+                        title: '人民币中间价小幅调升，跨境资金流入回暖',
+                        url: 'https://example.com/news/8',
+                        platform_name: '财联社热度',
+                        rank: 7,
+                        time_display: '15时27分',
+                        is_new: true,
+                    },
+                ],
+            },
+            {
+                word_group: '光伏 储能',
+                count: 4,
+                percentage: 33.3,
+                news_list: [
+                    {
+                        title: '欧洲户储回暖，国内逆变器龙头获 2 亿欧大单',
+                        url: 'https://example.com/news/9',
+                        platform_name: '雪球热榜',
+                        rank: 9,
+                        time_display: '15时20分',
+                    },
+                ],
+            },
+            {
+                word_group: '消费 复苏',
+                count: 3,
+                percentage: 25.1,
+                news_list: [
+                    {
+                        title: '黑五预售启动，跨境独立站单量翻倍',
+                        url: 'https://example.com/news/10',
+                        platform_name: '小红书热搜',
+                        rank: 11,
+                        time_display: '15时12分',
+                        is_new: true,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const dataState = {
+        summarySource: 'sample',
+        incrementalSource: 'sample',
+    };
+
+    const readInlineJSON = (id) => {
+        const node = document.getElementById(id);
+        if (!node) return null;
+        const payload = node.textContent?.trim();
+        if (!payload) return null;
+        try {
+            return JSON.parse(payload);
+        } catch (error) {
+            console.warn(`解析 ${id} 失败`, error);
+            return null;
+        }
+    };
+
+    const candidateDates = Array.from(new Set([
+        ...collectCandidates(requestedDate),
+        ...collectCandidates(fallbackDate),
+        ...collectCandidates(SAMPLE_SUMMARY.metadata?.date),
+    ].filter(Boolean)));
+
+    const heroEls = {
+        date: document.getElementById('metaDate'),
+        batches: document.getElementById('metaBatch'),
+        news: document.getElementById('metaNews'),
+        updated: document.getElementById('metaUpdated'),
+    };
+
+    const MAX_NEWS_PER_GROUP = (() => {
+        const possible = Number(window.HOTSPOT_STAT_NEWS_LIMIT);
+        return Number.isFinite(possible) && possible > 0 ? possible : Infinity;
+    })();
+
+    const CHAT_DEFAULTS = {
+        inject_context: window.HOTSPOT_CHAT_INJECT_CONTEXT !== false,
+        news_limit: Number(window.HOTSPOT_CHAT_NEWS_LIMIT) || 50,
+        platforms: Array.isArray(window.HOTSPOT_CHAT_PLATFORMS) ? window.HOTSPOT_CHAT_PLATFORMS : undefined,
+    };
+
+    const batchTimelineEl = document.getElementById('batchTimeline');
+    const batchBadgeEl = document.getElementById('batchBadge');
+    const incrementalBadgeEl = document.getElementById('incrementalBadge');
+    const incrementalMetaEl = document.getElementById('incrementalMeta');
+    const incrementalStatsEl = document.getElementById('incrementalStats');
+
+    const formatNumber = (value) => value?.toLocaleString?.('zh-CN') ?? '0';
+
+    const formatTime = (isoString) => {
+        if (!isoString) return '—';
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const formatDate = (isoString) => {
+        if (!isoString) return '—';
+        const date = new Date(isoString);
+        return date.toLocaleString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const createStatCard = (stat) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'stat-card';
+        wrapper.innerHTML = `
+            <div class="stat-word">${stat.word_group}</div>
+            <div class="stat-count">
+                <strong>${stat.count}</strong>
+                <span>条新闻 · ${stat.percentage ?? 0}%</span>
+            </div>
+            <div class="progress">
+                <span style="width:${stat.percentage ?? 0}%"></span>
+            </div>
+        `;
+
+        const newsList = document.createElement('div');
+        newsList.className = 'news-list';
+
+        const allNews = Array.isArray(stat.news_list) ? stat.news_list : [];
+        const visibleNews = MAX_NEWS_PER_GROUP === Infinity ? allNews : allNews.slice(0, MAX_NEWS_PER_GROUP);
+
+        visibleNews.forEach((news) => {
+            const link = document.createElement('a');
+            link.className = 'news-item';
+            link.href = news.url || news.mobile_url || '#';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+
+            link.innerHTML = `
+                <div class="news-title">${news.title}</div>
+                <div class="news-meta">
+                    <span>${news.platform_name || news.platform}</span>
+                    <span>排名 #${news.rank ?? '—'}</span>
+                    <span>${news.time_display || formatTime(news.timestamp)}</span>
+                    ${news.is_new ? '<span class="pill">New</span>' : ''}
+                </div>
+            `;
+
+            newsList.appendChild(link);
+        });
+
+        if (MAX_NEWS_PER_GROUP !== Infinity && allNews.length > visibleNews.length) {
+            const footer = document.createElement('div');
+            footer.className = 'news-meta';
+            footer.textContent = `还有 ${allNews.length - visibleNews.length} 条新闻，调整 HOTSPOT_STAT_NEWS_LIMIT 查看更多`; 
+            newsList.appendChild(footer);
+        }
+
+        wrapper.appendChild(newsList);
+        return wrapper;
+    };
+
+    const createBatchCard = (batch, index) => {
+        const card = document.createElement('article');
+        card.className = 'batch-card';
+
+        card.innerHTML = `
+            <div class="batch-summary">
+                <div>
+                    <div class="batch-time">${batch.batch_id || `批次 ${index + 1}`}</div>
+                    <div class="batch-meta">更新时间 · ${formatDate(batch.timestamp)}</div>
+                </div>
+                <div class="pill">${batch.stats?.length ?? 0} 个关键词组</div>
+            </div>
+        `;
+
+        const statsGrid = document.createElement('div');
+        statsGrid.className = 'stats-grid';
+
+        (batch.stats || []).forEach((stat) => {
+            statsGrid.appendChild(createStatCard(stat));
+        });
+
+        card.appendChild(statsGrid);
+        return card;
+    };
+
+    const renderSummary = (data, options = {}) => {
+        const { badgeText } = options;
+        heroEls.date.textContent = data.metadata?.date || '—';
+        heroEls.batches.textContent = `${data.metadata?.total_batches ?? 0} 批`;
+        heroEls.news.textContent = `${formatNumber(data.metadata?.total_news_count ?? 0)} 条`;
+        heroEls.updated.textContent = formatDate(data.metadata?.last_update);
+
+        batchBadgeEl.textContent = badgeText ?? `${data.batches?.length ?? 0} 批记录`;
+
+        batchTimelineEl.innerHTML = '';
+        if (!data.batches?.length) {
+            batchTimelineEl.innerHTML = '<div class="empty-state">暂无批次数据</div>';
+            return;
+        }
+
+        data.batches.forEach((batch, index) => {
+            batchTimelineEl.appendChild(createBatchCard(batch, index));
+        });
+    };
+
+    const renderIncremental = (data, options = {}) => {
+        const { badgeText } = options;
+        incrementalBadgeEl.textContent = badgeText ?? (data.metadata?.batch_id || '—');
+
+        incrementalMetaEl.innerHTML = '';
+        const metaEntries = [
+            { label: '批次时间', value: formatDate(data.metadata?.timestamp) },
+            { label: '新增新闻', value: `${data.metadata?.new_news_count ?? 0} 条` },
+            { label: '覆盖词组', value: `${data.stats?.length ?? 0} 组` },
+        ];
+
+        metaEntries.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'incremental-card';
+            card.innerHTML = `
+                <div class="meta-label">${item.label}</div>
+                <strong>${item.value}</strong>
+            `;
+            incrementalMetaEl.appendChild(card);
+        });
+
+        incrementalStatsEl.innerHTML = '';
+        if (!data.stats?.length) {
+            incrementalStatsEl.innerHTML = '<div class="empty-state">暂无新增数据</div>';
+            return;
+        }
+
+        data.stats.forEach((stat) => {
+            incrementalStatsEl.appendChild(createStatCard(stat));
+        });
+    };
+
+    renderSummary(SAMPLE_SUMMARY, { badgeText: '样例视图' });
+    renderIncremental(SAMPLE_INCREMENTAL, { badgeText: '样例批次' });
+
+    const fetchWithFallback = async ({ label, loader }) => {
+        for (const date of candidateDates) {
+            try {
+                const json = await loader(date);
+                if (json) {
+                    return { json, date };
+                }
+            } catch (error) {
+                console.warn(`加载 ${label}(${date}) 失败`, error);
+            }
+        }
+        return null;
+    };
+
+    const init = async () => {
+        const inlineSummary = readInlineJSON('inline-summary');
+        if (inlineSummary) {
+            renderSummary(inlineSummary);
+            dataState.summarySource = 'inline';
+        } else {
+            const summaryResult = await fetchWithFallback({
+                label: 'summary API',
+                loader: (date) => fetchDashboardJSON('/dashboard/summary', { date }),
+            });
+            if (summaryResult) {
+                renderSummary(summaryResult.json);
+                dataState.summarySource = 'api';
+            } else if (dataState.summarySource === 'sample') {
+                batchBadgeEl.textContent = '样例视图 · 等待 API 数据';
+            }
+        }
+
+        const inlineIncremental = readInlineJSON('inline-incremental');
+        if (inlineIncremental) {
+            renderIncremental(inlineIncremental);
+            dataState.incrementalSource = 'inline';
+        } else {
+            const incrementalResult = await fetchWithFallback({
+                label: 'incremental API',
+                loader: (date) => fetchDashboardJSON('/dashboard/incremental', { date }),
+            });
+            if (incrementalResult) {
+                renderIncremental(incrementalResult.json);
+                dataState.incrementalSource = 'api';
+            } else if (dataState.incrementalSource === 'sample') {
+                incrementalBadgeEl.textContent = '样例批次 · 等待 API 数据';
+            }
+        }
+    };
+
+    const bootstrapChatConsole = () => {
+        const baseUrl = window.HOTSPOT_CHAT_BASE_URL || 'http://localhost:8000/api/v1';
+        const formEl = document.getElementById('chatForm');
+        const inputEl = document.getElementById('chatInput');
+        const messagesEl = document.getElementById('chatMessages');
+        const placeholderEl = document.getElementById('chatPlaceholder');
+        const statusEl = document.getElementById('chatStatusBadge');
+        const statusTextEl = statusEl?.querySelector('.chat-status-text');
+        const sendButton = document.getElementById('chatSendButton');
+        const stopButton = document.getElementById('chatStopButton');
+        const newSessionButton = document.getElementById('chatNewSession');
+        const quickPromptButtons = document.querySelectorAll('[data-chat-prompt]');
+        const modalPortal = document.getElementById('chatModalPortal');
+        const launcherButton = document.getElementById('chatLauncher');
+        const closeButton = document.getElementById('chatCloseButton');
+        const backdropEl = document.getElementById('chatBackdrop');
+        const launcherHintEl = launcherButton?.querySelector('.chat-launcher-copy span');
+
+        if (!formEl || !inputEl || !messagesEl) return;
+
+        const state = {
+            sessionId: null,
+            sessionPromise: null,
+            isStreaming: false,
+            abortController: null,
+            contextInjected: false,
+        };
+
+        const defaultLauncherHint = launcherHintEl?.textContent?.trim() || '热点问答';
+        const launcherCopyMap = {
+            idle: defaultLauncherHint,
+            connecting: '连接中…',
+            ready: '随时提问',
+            streaming: 'AI 正在分析…',
+            error: '等待服务…',
+        };
+
+        let lastFocusedElement = null;
+
+        const isModalOpen = () => modalPortal?.dataset.open === 'true';
+
+        const scrollMessages = () => {
+            requestAnimationFrame(() => {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            });
+        };
+
+        const hidePlaceholder = () => {
+            if (placeholderEl) placeholderEl.classList.add('hidden');
+        };
+
+        const showPlaceholder = () => {
+            if (placeholderEl) placeholderEl.classList.remove('hidden');
+        };
+
+        const syncSendAvailability = () => {
+            if (!sendButton) return;
+            const hasText = Boolean(inputEl.value.trim());
+            sendButton.disabled = !hasText || state.isStreaming;
+        };
+
+        const setBusy = (busy) => {
+            state.isStreaming = busy;
+            inputEl.disabled = busy;
+            if (stopButton) stopButton.disabled = !busy;
+            syncSendAvailability();
+            if (!busy && isModalOpen()) inputEl.focus();
+        };
+
+        const setStatus = (text, variant = 'idle') => {
+            if (statusEl) {
+                statusEl.dataset.variant = variant;
+                if (statusTextEl) statusTextEl.textContent = text;
+            }
+            if (launcherButton) {
+                launcherButton.dataset.variant = variant;
+            }
+            if (launcherHintEl) {
+                launcherHintEl.textContent = launcherCopyMap[variant] || defaultLauncherHint;
+            }
+        };
+
+        const createMessageBubble = (role, content = '') => {
+            hidePlaceholder();
+            const bubble = document.createElement('div');
+            bubble.className = `chat-message ${role}`;
+            bubble.textContent = content;
+            messagesEl.appendChild(bubble);
+            scrollMessages();
+            return bubble;
+        };
+
+        const summonChatSession = async (options = {}) => {
+            if (options.reset) {
+                state.sessionId = null;
+                state.sessionPromise = null;
+            }
+            if (state.sessionId) return state.sessionId;
+            if (state.sessionPromise) return state.sessionPromise;
+
+            state.sessionPromise = (async () => {
+                setStatus('正在连接聊天服务…', 'connecting');
+                try {
+                    const response = await fetch(`${baseUrl}/chat/sessions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            inject_context: CHAT_DEFAULTS.inject_context,
+                            news_limit: CHAT_DEFAULTS.news_limit,
+                            platforms: CHAT_DEFAULTS.platforms,
+                        }),
+                    });
+                    if (!response.ok) throw new Error('创建会话失败');
+                    const payload = await response.json().catch(() => null);
+                    const sessionId = payload?.data?.session_id;
+                    if (!sessionId) throw new Error('后台未返回 session_id');
+                    state.sessionId = sessionId;
+                    state.contextInjected = false;
+                    setStatus('已连接', 'ready');
+                    return sessionId;
+                } catch (error) {
+                    setStatus(error.message || '连接失败', 'error');
+                    throw error;
+                }
+            })();
+
+            try {
+                return await state.sessionPromise;
+            } finally {
+                state.sessionPromise = null;
+            }
+        };
+
+        const updateModalState = (open) => {
+            if (!modalPortal) return;
+            modalPortal.dataset.open = open ? 'true' : 'false';
+            modalPortal.setAttribute('aria-hidden', open ? 'false' : 'true');
+            if (open) {
+                document.body.dataset.chatOpen = 'true';
+            } else {
+                delete document.body.dataset.chatOpen;
+            }
+            if (launcherButton) {
+                launcherButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            if (!open && lastFocusedElement instanceof HTMLElement) {
+                lastFocusedElement.focus();
+                lastFocusedElement = null;
+            }
+        };
+
+        const openChatModal = () => {
+            if (isModalOpen()) return;
+            lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            updateModalState(true);
+            requestAnimationFrame(() => {
+                if (!state.isStreaming) {
+                    inputEl.focus();
+                } else if (stopButton) {
+                    stopButton.focus();
+                }
+            });
+            summonChatSession().catch((error) => {
+                console.warn('打开聊天时创建会话失败', error);
+                setStatus('等待服务启动…', 'error');
+            });
+        };
+
+        const closeChatModal = () => {
+            if (!isModalOpen()) return;
+            updateModalState(false);
+        };
+
+        const resetConversation = async () => {
+            if (state.abortController) {
+                state.abortController.abort();
+            }
+            state.sessionId = null;
+            state.contextInjected = false;
+            state.isStreaming = false;
+            messagesEl.querySelectorAll('.chat-message').forEach((node) => node.remove());
+            showPlaceholder();
+            setStatus('等待连接…', 'idle');
+            syncSendAvailability();
+            try {
+                await summonChatSession({ reset: true });
+            } catch (error) {
+                console.warn('无法重置聊天会话', error);
+            }
+        };
+
+        const streamAssistantReply = async (message) => {
+            const question = message.trim();
+            if (!question || state.isStreaming) return;
+
+            createMessageBubble('user', question);
+            const assistantBubble = createMessageBubble('assistant', '');
+            inputEl.value = '';
+            syncSendAvailability();
+            setBusy(true);
+            setStatus('AI 正在分析最新热点…', 'streaming');
+
+            let sessionId;
+            try {
+                sessionId = await summonChatSession();
+            } catch (error) {
+                console.error('聊天会话获取失败', error);
+                assistantBubble.classList.add('error');
+                assistantBubble.textContent = error.message || '无法连接聊天服务';
+                setBusy(false);
+                setStatus('请求失败', 'error');
+                return;
+            }
+
+            const injectContext = !state.contextInjected;
+            state.contextInjected = true;
+            const controller = new AbortController();
+            state.abortController = controller;
+
+            try {
+                const response = await fetch(`${baseUrl}/chat/sessions/${sessionId}/messages/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'text/event-stream',
+                    },
+                    body: JSON.stringify({ message: question, inject_context: injectContext }),
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`请求失败 (${response.status})`);
+                }
+
+                if (!response.body || !response.body.getReader) {
+                    const fallback = await response.json().catch(() => null);
+                    const reply = fallback?.data?.reply || '暂无回复内容';
+                    assistantBubble.textContent = reply;
+                    scrollMessages();
+                } else {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let transcript = '';
+                    let buffer = '';
+
+                    const processEvent = (rawEvent) => {
+                        const lines = rawEvent.split('\n');
+                        const dataLine = lines.find((line) => line.startsWith('data:'));
+                        if (!dataLine) return;
+                        const payload = dataLine.replace(/^data:\s*/, '');
+                        if (!payload) return;
+                        try {
+                            const parsed = JSON.parse(payload);
+                            if (parsed.type === 'content') {
+                                transcript += parsed.content || '';
+                                assistantBubble.textContent = transcript;
+                                scrollMessages();
+                            } else if (parsed.type === 'done') {
+                                transcript = parsed.full_reply || transcript;
+                            } else if (parsed.type === 'error') {
+                                throw new Error(parsed.error || '聊天失败');
+                            }
+                        } catch (parseError) {
+                            console.warn('解析流式事件失败', parseError, payload);
+                        }
+                    };
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+
+                        const segments = buffer.split('\n\n');
+                        buffer = segments.pop() ?? '';
+                        segments.forEach(processEvent);
+                    }
+
+                    const remaining = `${buffer}${decoder.decode()}`.trim();
+                    if (remaining) {
+                        remaining.split('\n\n').forEach(processEvent);
+                    }
+
+                    assistantBubble.textContent = transcript || 'AI 暂无补充';
+                }
+
+                setStatus('已就绪', 'ready');
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    assistantBubble.classList.add('error');
+                    assistantBubble.textContent = assistantBubble.textContent || '生成已终止';
+                    setStatus('已停止', 'idle');
+                } else {
+                    console.error('聊天请求异常', error);
+                    assistantBubble.classList.add('error');
+                    assistantBubble.textContent = error.message || '聊天失败';
+                    setStatus('请求失败', 'error');
+                }
+            } finally {
+                if (state.abortController === controller) {
+                    state.abortController = null;
+                }
+                setBusy(false);
+            }
+        };
+
+        formEl.addEventListener('submit', (event) => {
+            event.preventDefault();
+            streamAssistantReply(inputEl.value);
+        });
+
+        inputEl.addEventListener('input', syncSendAvailability);
+
+        syncSendAvailability();
+
+        quickPromptButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const prompt = button.getAttribute('data-chat-prompt');
+                inputEl.value = prompt || '';
+                syncSendAvailability();
+                inputEl.focus();
+            });
+        });
+
+        if (stopButton) {
+            stopButton.addEventListener('click', () => {
+                if (state.abortController) {
+                    state.abortController.abort();
+                }
+            });
+        }
+
+        if (newSessionButton) {
+            newSessionButton.addEventListener('click', () => {
+                resetConversation();
+            });
+        }
+
+        if (launcherButton) {
+            launcherButton.addEventListener('click', () => {
+                if (isModalOpen()) {
+                    closeChatModal();
+                } else {
+                    openChatModal();
+                }
+            });
+        }
+
+        if (closeButton) {
+            closeButton.addEventListener('click', () => closeChatModal());
+        }
+
+        if (backdropEl) {
+            backdropEl.addEventListener('click', () => closeChatModal());
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && isModalOpen()) {
+                event.preventDefault();
+                closeChatModal();
+            }
+        });
+
+        summonChatSession().catch((error) => {
+            console.warn('初始会话创建失败', error);
+            setStatus('等待服务启动…', 'error');
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+        bootstrapChatConsole();
+    });
+</script>
+</body>
+</html>

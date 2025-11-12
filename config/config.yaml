@@ -63,7 +63,7 @@ notification:
     email_from: "" # 发件人邮箱地址
     email_password: "" # 发件人邮箱密码或授权码
     email_to: "" # 收件人邮箱地址，多个收件人用逗号分隔
-    email_smtp_server: "" # SMTP服务器地址（可选，留空自动识别）
+    email_smtp_server: "smtp.163.com" # SMTP服务器地址（可选，留空自动识别）
     email_smtp_port: "" # SMTP端口（可选，留空自动识别）
     ntfy_server_url: "https://ntfy.sh" # ntfy服务器地址，默认使用公共服务，可改为自托管地址
     ntfy_topic: "" # ntfy主题名称
@@ -74,6 +74,30 @@ weight:
   rank_weight: 0.6 # 排名权重
   frequency_weight: 0.3 # 频次权重
   hotness_weight: 0.1 # 热度权重
+
+# 🤖 大模型配置（用于 AI 对话分析功能）
+# 支持所有兼容 OpenAI API 格式的服务商
+llm:
+  provider: "deepseek"  # 服务商标识（仅用于显示）
+  base_url: "https://api.deepseek.com/v1"  # API 基础 URL，可通过环境变量 LLM_BASE_URL 覆盖
+  api_key: ""  # API 密钥，建议通过环境变量 LLM_API_KEY 配置
+  model: "deepseek-chat"  # 模型名称，可通过环境变量 LLM_MODEL 覆盖
+  max_tokens: 20000  # 生成的最大 token 数
+  temperature: 0.7  # 温度参数（0-2），越高越随机
+  timeout: 60  # 请求超时时间（秒）
+
+  # 🔸 常见服务商配置示例：
+  # OpenAI: base_url="https://api.openai.com/v1", model="gpt-4"
+  # DeepSeek: base_url="https://api.deepseek.com/v1", model="deepseek-chat"
+  # Moonshot: base_url="https://api.moonshot.cn/v1", model="moonshot-v1-8k"
+  # Azure OpenAI: base_url="https://{your-resource}.openai.azure.com", model="gpt-4"
+  # 本地 Ollama: base_url="http://localhost:11434/v1", model="llama3"
+
+# 💬 对话配置（AI 分析功能）
+chat:
+  storage_path: "conversations"  # 会话数据存储目录
+  max_history_length: 20  # 单个会话保留的最大历史消息数（控制 Token 使用）
+  context_news_limit: 50  # 首轮对话注入的最大新闻数量
 
 # name 可以定义任意名称，只具有显示作用，即使项目运行了几天后，忽然改掉 name 也不会影响代码的正常运行
 platforms:
@@ -99,3 +123,41 @@ platforms:
     name: "抖音"
   - id: "zhihu"
     name: "知乎"
+  - id: "jin10"
+    name: "金十数据"
+
+# 信息源配置
+# 🔸 enabled: 启用的信息源列表
+# 🔸 newsnow: NewNow 热榜聚合源配置
+# 🔸 rss: RSS 订阅源配置
+sources:
+  enabled:
+    - "newsnow"  # NewNow 热榜聚合
+    - "rss"      # RSS 订阅（如需使用请取消注释）
+
+  # NewNow 配置（默认启用）
+  newsnow:
+    api_url: "https://newsnow.busiyi.world/api/s"
+    # platforms 留空则自动使用上面的 platforms 配置
+
+  # RSS 订阅源配置
+  # 🔸 配置说明：
+  #   • 可以添加多个 RSS feed，支持标准的 RSS/Atom 格式
+  #   • url: RSS feed 地址（必填）
+  #   • name: 显示名称（可选，不填则使用 URL）
+  # 🔸 常见 RSS 源示例：
+  #   • 36氪: https://36kr.com/feed
+  #   • 少数派: https://sspai.com/feed
+  #   • 阮一峰科技周刊: https://www.ruanyifeng.com/blog/atom.xml
+  #   • Hacker News: https://news.ycombinator.com/rss
+  rss:
+    feeds:
+      - url: "https://36kr.com/feed"
+        name: "36氪"
+      - url: "https://sspai.com/feed"
+        name: "少数派"
+      # 你可以继续添加更多 RSS feed
+      # - url: "https://www.ruanyifeng.com/blog/atom.xml"
+      #   name: "阮一峰的网络日志"
+      # - url: "https://news.ycombinator.com/rss"
+      #   name: "Hacker News"
