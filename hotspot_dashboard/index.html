@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendRadar 热点雷达面板</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page">
+    <header class="hero">
+        <h1>TrendRadar · 今日热点雷达</h1>
+        <p>汇集 11+ 平台热点，实时洞察关键词组合与新增动向。</p>
+        <div class="hero-meta">
+            <div class="meta-card">
+                <span class="meta-label">数据日期</span>
+                <span class="meta-value" id="metaDate">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">批次数</span>
+                <span class="meta-value" id="metaBatch">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">覆盖新闻</span>
+                <span class="meta-value" id="metaNews">——</span>
+            </div>
+            <div class="meta-card">
+                <span class="meta-label">最新更新</span>
+                <span class="meta-value" id="metaUpdated">——</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="panel" aria-labelledby="timelineTitle">
+            <div>
+                <div class="panel-head">
+                    <div>
+                        <h2 class="panel-title" id="timelineTitle">今日批次轨迹</h2>
+                        <p class="panel-subtitle">每个时间切片的关键词聚合 & 热度占比</p>
+                    </div>
+                    <span class="badge" id="batchBadge">—</span>
+                </div>
+                <div class="timeline" id="batchTimeline">
+                    <div class="loading">
+                        <span class="dot-loader"></span>
+                        <span>正在拉取汇总数据…</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="incrementalTitle">
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title" id="incrementalTitle">增量监控</h2>
+                    <p class="panel-subtitle">最新批次新增词组与新闻动向</p>
+                </div>
+                <span class="badge" id="incrementalBadge">—</span>
+            </div>
+
+            <div class="incremental-meta" id="incrementalMeta"></div>
+            <div class="incremental-stats" id="incrementalStats">
+                <div class="loading">
+                    <span class="dot-loader"></span>
+                    <span>正在拉取增量数据…</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<button class="chat-launcher" id="chatLauncher" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="chatModal" data-variant="idle">
+    <span class="chat-launcher-dot" aria-hidden="true"></span>
+    <span class="chat-launcher-copy">
+        <strong>AI 热点分析师</strong>
+        <span>热点问答</span>
+    </span>
+</button>
+
+<div class="chat-modal-portal" id="chatModalPortal" data-open="false" aria-hidden="true">
+    <div class="chat-backdrop" id="chatBackdrop" tabindex="-1"></div>
+    <section class="chat-modal" id="chatModal" role="dialog" aria-modal="true" aria-labelledby="chatPanelTitle" aria-describedby="chatSubtitle">
+        <div class="chat-modal-head">
+            <div class="chat-modal-headline">
+                <h2 class="panel-title" id="chatPanelTitle">AI 热点分析师</h2>
+                <p class="panel-subtitle" id="chatSubtitle">向 TrendRadar 智能助手提问，实时洞察跨平台脉络。</p>
+            </div>
+            <div class="chat-modal-head-actions">
+                <div class="chat-status" id="chatStatusBadge" data-variant="idle" aria-live="polite">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span class="chat-status-text">等待连接…</span>
+                </div>
+                <button type="button" class="chat-close" id="chatCloseButton" aria-label="关闭聊天窗口">&times;</button>
+            </div>
+        </div>
+
+        <div class="chat-shell">
+            <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="聊天消息">
+                <div class="chat-placeholder" id="chatPlaceholder">
+                    <p>让 AI 自动理解今日的知乎、微博、抖音等热点，把你的问题和业务语境串联起来。</p>
+                    <small>首次提问会自动注入热点上下文，你也可以随时刷新会话重新对焦。</small>
+                </div>
+            </div>
+            <div class="chat-quick-prompts" aria-label="快速提问">
+                <!-- <button type="button" class="chat-chip" data-chat-prompt="总结今天舆论收割的 3 个焦点，并分析受众差异。">总结今天舆论收割的 3 个焦点</button>
+                <button type="button" class="chat-chip" data-chat-prompt="这些共同话题对一级市场策略意味着什么？">一级市场策略影响</button>
+                <button type="button" class="chat-chip" data-chat-prompt="请把微博和知乎的重叠话题做对比，列出潜在机会。">微博 vs 知乎 对比</button>
+                <button type="button" class="chat-chip" data-chat-prompt="请生成一个可行动的运营建议清单。">生成运营建议</button> -->
+            </div>
+        </div>
+
+        <form class="chat-form" id="chatForm" autocomplete="off">
+            <label class="sr-only" for="chatInput">输入你的问题</label>
+            <textarea id="chatInput" class="chat-textarea" name="message" placeholder="想问什么？比如：这些科创话题对一级市场融资节奏意味着什么？" rows="3" required></textarea>
+            <div class="chat-actions">
+                <div class="chat-actions-left">
+                    <button type="button" class="ghost-button" id="chatNewSession">新建会话</button>
+                    <button type="button" class="ghost-button" id="chatStopButton" disabled>停止生成</button>
+                </div>
+                <button type="submit" class="primary-button" id="chatSendButton" disabled>发送</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<!--
+    如需在无本地服务的情况下查看真实数据，可将 JSON 内容直接粘贴到下方脚本标签中。
+    例如：把 output/<date>/json/news_summary.json 的全文复制到 #inline-summary 内，然后刷新页面。
+-->
+
+<script id="inline-summary" type="application/json"></script>
+<script id="inline-incremental" type="application/json"></script>
+
+<script src="js/main.js"></script>
+</body>
+</html>
