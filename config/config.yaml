@@ -134,7 +134,7 @@ sources:
   enabled:
     - "newsnow"  # NewNow 热榜聚合
     - "rss"      # RSS 订阅（如需使用请取消注释）
-
+    - "youtube"  #拉取Youtube
   # NewNow 配置（默认启用）
   newsnow:
     api_url: "https://newsnow.busiyi.world/api/s"
@@ -161,3 +161,22 @@ sources:
       #   name: "阮一峰的网络日志"
       # - url: "https://news.ycombinator.com/rss"
       #   name: "Hacker News"
+
+  # YouTube 热门视频配置
+  # 🔸 配置说明：
+  #   • api_key: YouTube Data API v3 密钥（必填）
+  #     获取方式: https://console.cloud.google.com/apis/credentials
+  #   • regions: 要获取的国家/地区代码列表（使用 ISO 3166-1 alpha-2 代码）
+  #   • max_results: 每个地区获取的最大视频数（默认 50，最大 50）
+  # 🔸 常见地区代码：
+  #   • US: 美国
+  #   • GB: 英国
+  #   • JP: 日本
+  #   • KR: 韩国
+  #   • TW: 台湾
+  #   • HK: 香港
+  youtube:
+    api_key: ""  # 建议通过环境变量 YOUTUBE_API_KEY 配置
+    regions:
+      - "US"  # 美国
+    max_results: 50
