@@ -83,9 +83,11 @@ class ChatService:
             if context_data.get("error"):
                 return session_id, False, context_data["error"], None
 
-            # 构建 system prompt
-            system_prompt = self.context_builder.build_system_prompt(context_data)
-            context_message = self.context_builder.build_context_message(context_data)
+            # 构建 system prompt (将新闻数据包含在 system prompt 中)
+            system_prompt = self.context_builder.build_system_prompt(
+                context_data,
+                include_news_data=True  # 将新闻数据包含在 system prompt 中
+            )
 
             # 添加 system 消息
             session_data["messages"].append({
@@ -94,20 +96,7 @@ class ChatService:
                 "timestamp": created_at
             })
 
-            # 添加上下文数据作为第一条 user 消息(隐藏的)
-            session_data["messages"].append({
-                "role": "user",
-                "content": f"以下是今天的新闻数据:\n{context_message}",
-                "timestamp": created_at,
-                "hidden": True  # 标记为隐藏,不在历史中显示给用户
-            })
-
-            # 添加 assistant 确认消息
-            session_data["messages"].append({
-                "role": "assistant",
-                "content": f"我已收到 {context_data['news_count']} 条新闻数据,准备好为您分析了。请问有什么需要了解的吗?",
-                "timestamp": created_at
-            })
+           
 
             # 保存元数据
             session_data["metadata"] = {
@@ -150,6 +139,8 @@ class ChatService:
             return None, False, "会话不存在", None
 
         # 重新注入上下文（可选）
+        # 注意：system prompt 中已经包含了初始新闻数据
+        # 这里的 inject_context 用于更新 system prompt 为最新数据
         if inject_context:
             context_data = self.context_builder.get_latest_news_context(
                 platforms=platforms,
@@ -157,8 +148,18 @@ class ChatService:
             )
 
             if not context_data.get("error"):
-                context_message = self.context_builder.build_context_message(context_data)
-                user_message = f"{user_message}\n\n最新数据:\n{context_message}"
+                # 更新 system prompt 为最新数据
+                new_system_prompt = self.context_builder.build_system_prompt(
+                    context_data,
+                    include_news_data=True
+                )
+
+                # 查找并更新第一条 system 消息
+                for msg in session["messages"]:
+                    if msg["role"] == "system":
+                        msg["content"] = new_system_prompt
+                        msg["timestamp"] = datetime.now().isoformat()
+                        break
 
         # 添加用户消息
         session["messages"].append({
@@ -229,6 +230,8 @@ class ChatService:
             return
 
         # 重新注入上下文（可选）
+        # 注意：system prompt 中已经包含了初始新闻数据
+        # 这里的 inject_context 用于更新 system prompt 为最新数据
         if inject_context:
             context_data = self.context_builder.get_latest_news_context(
                 platforms=platforms,
@@ -236,8 +239,18 @@ class ChatService:
             )
 
             if not context_data.get("error"):
-                context_message = self.context_builder.build_context_message(context_data)
-                user_message = f"{user_message}\n\n最新数据:\n{context_message}"
+                # 更新 system prompt 为最新数据
+                new_system_prompt = self.context_builder.build_system_prompt(
+                    context_data,
+                    include_news_data=True
+                )
+
+                # 查找并更新第一条 system 消息
+                for msg in session["messages"]:
+                    if msg["role"] == "system":
+                        msg["content"] = new_system_prompt
+                        msg["timestamp"] = datetime.now().isoformat()
+                        break
 
         # 添加用户消息
         session["messages"].append({

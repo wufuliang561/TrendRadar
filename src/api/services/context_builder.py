@@ -113,32 +113,55 @@ class ContextBuilder:
         """
         news_list = []
 
-        # 从最新批次中提取
-        batches = summary_data.get("batches", [])
-        if not batches:
-            return news_list
+        # 新格式：直接从 stats 中提取
+        stats = summary_data.get("stats", [])
+        if not stats:
+            # 兼容旧格式：从 batches 中提取
+            batches = summary_data.get("batches", [])
+            if not batches:
+                return news_list
 
-        # 获取最新批次
-        latest_batch = batches[-1]
-        stats = latest_batch.get("stats", [])
+            # 获取最新批次
+            latest_batch = batches[-1]
+            stats = latest_batch.get("stats", [])
 
         # 遍历词组统计
         for stat in stats:
-            titles = stat.get("titles", [])
+            # 新格式使用 news_list 字段
+            news_items = stat.get("news_list", [])
 
-            for title_data in titles:
+            # 兼容旧格式：使用 titles 字段
+            if not news_items:
+                news_items = stat.get("titles", [])
+
+            for news_data in news_items:
                 # 平台筛选
-                source_id = title_data.get("source_id", "")
-                if platforms and source_id not in platforms:
+                platform_id = news_data.get("platform", "")
+                if platforms and platform_id not in platforms:
                     continue
 
-                # 构建精简的新闻项（仅保留核心字段）
+                # 获取排名（兼容新旧格式）
+                rank = news_data.get("rank", 99)
+                if isinstance(rank, list):
+                    rank = min(rank) if rank else 99
+                rank = min(rank, 99)
+
+                # 获取出现次数
+                count = news_data.get("occurrence_count", news_data.get("count", 1))
+
+                # 计算权重（如果没有则根据排名和次数计算）
+                weight = news_data.get("weight", 0.0)
+                if weight == 0.0:
+                    # 简单权重计算：排名越小、次数越多，权重越高
+                    weight = (100 - rank) * 0.6 + min(count * 10, 30) * 0.3 + 10 * 0.1
+
+                # 构建精简的新闻项
                 news_item = {
-                    "title": title_data.get("title", ""),
-                    "platform": title_data.get("source_name", ""),
-                    "rank": min(title_data.get("ranks", [99])[-1] if title_data.get("ranks") else 99, 99),
-                    "count": title_data.get("count", 1),
-                    "weight": round(title_data.get("weight", 0.0), 2)
+                    "title": news_data.get("title", ""),
+                    "platform": news_data.get("platform_name", news_data.get("source_name", platform_id)),
+                    "rank": rank,
+                    "count": count,
+                    "weight": round(weight, 2)
                 }
 
                 news_list.append(news_item)
@@ -155,11 +178,16 @@ class ContextBuilder:
 
         return news_list[:limit]
 
-    def build_system_prompt(self, context_data: Dict[str, Any]) -> str:
+    def build_system_prompt(
+        self,
+        context_data: Dict[str, Any],
+        include_news_data: bool = False
+    ) -> str:
         """构建 System Prompt
 
         Args:
             context_data: 上下文数据
+            include_news_data: 是否将新闻数据包含在 system prompt 中
 
         Returns:
             str: System Prompt
@@ -168,12 +196,8 @@ class ContextBuilder:
         news_count = context_data.get("news_count", 0)
         platforms = context_data.get("platforms", [])
 
-        prompt = f"""你是一个专业的新闻分析助手,擅长从热点新闻数据中提取洞察和分析趋势。
+        prompt = f"""你是一个专业的智能助手,我这里有很多新闻数据,请你作为参考来回答我的问题
 
-【当前数据范围】
-- 日期: {date}
-- 新闻数量: {news_count} 条
-- 覆盖平台: {', '.join(platforms)}
 
 【数据字段说明】
 - title: 新闻标题
@@ -182,7 +206,7 @@ class ContextBuilder:
 - count: 在不同批次中出现的次数(持续热度指标)
 - weight: 综合权重分数(0-100,考虑排名+频次+热度,越高越重要)
 
-【分析原则】
+【hui 'da原则】
 1. 客观准确,基于数据事实进行分析
 2. 结构清晰,突出重点和趋势
 3. 识别新闻间的关联性和热点话题
@@ -193,7 +217,13 @@ class ContextBuilder:
 - 使用中文回答
 - 分条列举,逻辑清晰
 - 适当使用数据支撑观点
-- 避免冗长的描述,言简意赅"""
+- 避免冗长的描述,言简意赅
+- 以文本格式回答,不要用md格式"""
+
+        # 如果需要,将新闻数据也包含在 system prompt 中
+        if include_news_data and news_count > 0:
+            context_message = self.build_context_message(context_data)
+            prompt += f"\n\n【新闻数据】\n{context_message}"
 
         return prompt
 
@@ -243,13 +273,15 @@ class ContextBuilder:
             Dict: 统计信息
         """
         context_message = self.build_context_message(context_data)
-        system_prompt = self.build_system_prompt(context_data)
+        system_prompt_only = self.build_system_prompt(context_data, include_news_data=False)
+        system_prompt_with_data = self.build_system_prompt(context_data, include_news_data=True)
 
         return {
             "news_count": context_data.get("news_count", 0),
             "platforms": context_data.get("platforms", []),
             "estimated_context_tokens": self.estimate_tokens(context_message),
-            "estimated_system_tokens": self.estimate_tokens(system_prompt),
-            "estimated_total_tokens": self.estimate_tokens(context_message + system_prompt),
+            "estimated_system_tokens": self.estimate_tokens(system_prompt_only),
+            "estimated_system_with_data_tokens": self.estimate_tokens(system_prompt_with_data),
+            "estimated_total_tokens": self.estimate_tokens(system_prompt_with_data),
             "data_size_bytes": len(context_message.encode('utf-8'))
         }
